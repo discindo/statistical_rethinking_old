@@ -12,6 +12,13 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(tidyverse)
+library(rethinking)
+data(homeworkch3)
+```
+
+
 ## Medium.
 
 ### 3M1. 
@@ -72,5 +79,71 @@ loss <- sapply( grids , function(d) sum( poste*abs( d - grids ) ) )
 grids [ which.min(loss)]
 median(post_sample)
 mean(post_sample)
+```
+
+
+```{r}
+ndata <- length(birth1) + length(birth2)
+boys <- sum(birth1) + sum(birth2)
+```
+
+```{r}
+# параметарот што треба да го оценине е веројатноста да се роди машко дете
+
+p_grid <- seq( from = 0 , to = 1 , length.out = 1000 )
+
+likelihood <- dbinom( x = 111 , size = 200 , prob = p_grid )
+
+prior <- rep( x =  1 , times = 1000 )
+
+posterior <- likelihood * prior 
+
+posterior <- posterior / sum(posterior) 
+```
+
+```{r}
+ggplot(data = data.frame(p_grid, posterior), aes(x = p_grid, y = posterior)) +
+  geom_area(color = "steelblue", fill = "steelblue", alpha = .5) + labs(x = "параметар", y = "веројатност")
+```
+
+```{r}
+#  Which parameter value maximizes the posterior probability?
+
+#max(posterior)
+p_grid [ which.max(posterior) ]
+
+
+```
+
+
+3H2. Using the sample function, draw 10,000 random parameter values from the posterior distri-
+bution you calculated above. Use these samples to estimate the 50%, 89%, and 97% highest posterior density intervals.
+
+```{r}
+samples <- sample( p_grid,           # можните вредности на параметарот
+                   prob = posterior, # веројантоста со која секоја вредност ќе биде извлечена
+                   size = 1e4,       # колку вредности да извлечеме
+                   replace = TRUE    # со замена 
+                )
+
+```
+
+```{r}
+library(tidybayes)
+
+rethinking::HPDI( samples, prob = 0.5)
+rethinking::HPDI( samples, prob = 0.89)
+rethinking::HPDI( samples, prob = 0.97)
+
+tidybayes::hdi( samples, 0.5)
+tidybayes::hdi( samples, 0.89)
+tidybayes::hdi( samples, 0.97)
+```
+
+3H3. Use rbinom to simulate 10,000 replicates of 200 births. You should end up with 10,000 numbers, each one a count of boys out of 200 births. Compare the distribution of predicted numbers of boys to the actual count in the data (111 boys out of 200 births). There are many good ways to visualize the simulations, but the dens command (part of the rethinking package) is probably the easiest way in this case. Does it look like the model fits the data well? That is, does the distribution of predictions include the actual observation as a central, likely outcome?
+
+
+```{r}
+
 ```
 
