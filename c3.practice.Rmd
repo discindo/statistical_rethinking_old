@@ -1,0 +1,76 @@
+---
+title: "Rethinking. C3. Practice"
+author: "Teo"
+date: "January 17, 2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Medium.
+
+### 3M1. 
+Suppose the globe tossing data had turned out to be 8 water in 15 tosses. Construct the posterior distribution, using grid approximation. Use the same flat prior as before.
+
+```{r}
+library(rethinking)
+
+datas <- 6/9
+prior <- rep(c(0,1), each=500)
+grids <- seq( 0, 1, length.out = 1000)
+likel <- dbinom(x = 6, size = 9, prob = grids)
+poste <- prior * likel
+poste <- poste / sum(poste)
+hist(poste)
+precis(poste)
+plot(x=grids, y=poste, type="b")
+```
+
+### 3M2. 
+Draw 10,000 samples from the grid approximation from above. Then use the samples to calculate the 90% HPDI for p.
+
+```{r}
+post_sample <- sample(x = grids, size = 10000, prob = poste, replace=TRUE)
+precis(post_sample)
+HPDI(samples = post_sample, prob=.9)
+```
+
+### 3M3. 
+Construct a posterior predictive check for this model and data. This means simulate the distribution of samples, averaging over the posterior uncertainty in p. What is the probability of observing 8 water in 15 tosses?
+
+```{r}
+ppc <- rbinom(n = 10000, size = 9, prob = post_sample)
+HPDI(ppc, prob = 0.9)
+simplehist(ppc)
+# the probability of a particular parameter value 
+# is its frequency in the posterior distribution
+# if its more likely, it will be sampled more frequently... 
+sum(ppc==8)/length(ppc)
+```
+
+
+### 3M4.
+Using the posterior distribution constructed from the new (8/15) data, now calculate the probability of observing 6 water in 9 tosses.
+
+```{r}
+sum(round(post_sample, 2) == 0.53) / length(post_sample) # 8/15
+sum(round(post_sample, 2) == 0.67) / length(post_sample) # 6/9
+sum(round(post_sample, 2) == 0.70) / length(post_sample) # truth
+```
+
+### 3M5. 
+Start over at 3M1, but now use a prior that is zero below p = 0.5 and a constant above p = 0.5. This corresponds to prior information that a majority of the Earth’s surface is water. Repeat each problem above and compare the inferences. What difference does the better prior make? If it helps, compare inferences (using both priors) to the true value p = 0.7.
+
+```{r}
+sum( poste*abs( 0.7 - grids ) )
+loss <- sapply( grids , function(d) sum( poste*abs( d - grids ) ) )
+grids [ which.min(loss)]
+median(post_sample)
+mean(post_sample)
+```
+
