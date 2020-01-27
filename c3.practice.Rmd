@@ -143,7 +143,8 @@ ggplot(data = data.frame(p_grid, posterior), aes(x = p_grid, y = posterior)) +
 p_grid [ which.max(posterior) ]
 ```
 
-3H2. Using the sample function, draw 10,000 random parameter values from the posterior distri-
+### 3H2. 
+Using the sample function, draw 10,000 random parameter values from the posterior distri-
 bution you calculated above. Use these samples to estimate the 50%, 89%, and 97% highest posterior density intervals.
 
 ```{r}
@@ -174,11 +175,19 @@ Use rbinom to simulate 10,000 replicates of 200 births. You should end up with 1
 library(dplyr)
 sims <- rbinom(n = 10000, size = 200, prob = samples)
 
+# for lines and labeling
+line_lab <-
+  data.frame(
+    where_x = c(0.65, 0.65),
+    where_y = c(boys / 200, sum(birth1) / 100),
+    what = c("Вкупно", "Првородени"))
+
 data.frame(samples, sims) %>% 
   ggplot(aes(x=samples, y=sims/200)) + 
   geom_hex() +
   geom_hline(yintercept = boys/200, color="orange", linetype=2, size=1.4) +
   geom_hline(yintercept = sum(birth1)/100, color="red", linetype=2, size=1.4) +
+  geom_text(aes(x=where_x, y=where_y, label=what), nudge_y = -0.01, data=line_lab) +
   labs(x="Веројатност на машко дете\nземена од постериорната дистрибуција") +
   labs(y="Симулиран фрекфенција на машки деца")
 ```
@@ -188,4 +197,84 @@ data.frame(samples, sims) %>%
 Now compare 10,000 counts of boys from 100 simulated first borns only to the number of boys
 in the first births, birth1 . How does the model look in this light?
 
-See the red line above
+See the red line above. 
+
+OK, so it looks like the probability of boy is a bit higher than 50% when you take first and second born babies together. But when you look at only the first the frequency is closer to 50% (as would be expected because of independent assortment of chromosomes during metaphase in meiosis I).
+
+### 3H5.
+
+The model assumes that sex of first and second births are independent. To check this assumption, focus now on second births that followed female first borns. Compare 10,000 simulated counts of boys to only those second births that followed girls. To do this correctly, you need to count the number of first borns who were girls and simulate that many births, 10,000 times. Compare the counts of boys in your simulations to the actual observed count of boys following girls. How does the model look in this light? Any guesses what is going on in these data?
+
+The above is a mouthful (at least for me). Not sure I completely understand what is he saying. But this is what I am thinking:
+
+First we make a data frame, filter for girls in first batch of babies and count boys and girls in the second batch:
+
+```{r}
+(
+second_child <- 
+  tibble(birth1, birth2) %>% 
+  filter(birth1 == 0) %>% 
+  group_by(birth2) %>% 
+  tally() %>% 
+  mutate(freq = n/sum(n))
+)
+```
+
+We get that when the first baby was a girl, only 20% of second babies were also girls. So it seems there is a second child bias.
+
+Now if we simulate as above, but keep the total size to 49, which is the total number of second babies that follow a girl first born. The question is what would the model predict in this case. i.e., does is predict the babies with an older sister well?
+
+```{r}
+new_sims <- rbinom(n = 10000, size = 49, prob = samples)
+
+# for lines and labeling
+line_lab <-
+  data.frame(
+    where_x = c(0.65),
+    where_y = c(second_child$freq[2]),
+    what = c("Машки со\nпостара сестра"))
+
+data.frame(samples, new_sims) %>% 
+  ggplot(aes(x=samples, y=new_sims/49)) + 
+  geom_hex() +
+  geom_hline(yintercept = second_child$freq[2], color="red", linetype=2, size=1.4) +
+  geom_text(aes(x=where_x, y=where_y, label=what), nudge_y = -0.01, data=line_lab) +
+  labs(x="Веројатност на машко дете\nземена од постериорната дистрибуција") +
+  labs(y="Симулиран фрекфенција на машки деца") 
+```
+
+ОК. Значи моделот очигледно не е адекватен за овие податоци бидејќи кога првото дете е женсо, моделот повторно предвидува фрекфенција на машки деца околу 0.5-0.6. Но видените податоци јасно покажуваат дека фрекфенцијата на момчиња кога првото дете е женско е далеку поголема. Можеме да заклучиме дека веројатностите за женски деца во првата и втора тура на размножување не се еднакви и не се независни.
+
+Ајде да погледнеме како моделот ги предвидува вторите бебиња ако првите биле машки:
+
+```{r}
+(
+second_child_first_male <- 
+  tibble(birth1, birth2) %>% 
+  filter(birth1 == 1) %>% 
+  group_by(birth2) %>% 
+  tally() %>% 
+  mutate(freq = n/sum(n))
+)
+```
+
+```{r}
+new_sims <- rbinom(n = 10000, size = 51, prob = samples)
+
+# for lines and labeling
+line_lab <-
+  data.frame(
+    where_x = c(0.65),
+    where_y = c(second_child_first_male$freq[2]),
+    what = c("Машки со\nпостар брат"))
+
+data.frame(samples, new_sims) %>% 
+  ggplot(aes(x=samples, y=new_sims/49)) + 
+  geom_hex() +
+  geom_hline(yintercept = second_child_first_male$freq[2], color="red", linetype=2, size=1.4) +
+  geom_text(aes(x=where_x, y=where_y, label=what), nudge_y = -0.01, data=line_lab) +
+  labs(x="Веројатност на машко дете\nземена од постериорната дистрибуција") +
+  labs(y="Симулиран фрекфенција на машки деца") 
+```
+
+Тука е малку подобро, но сеуште проблематично. Во овој случај моделот предвидува повеќе машки отколку видените податоци. Ова е очекувано, бидејќи моделот беше „трениран“ на сите податоци, не правеќки разлика помеѓу прво и второ дете. 
