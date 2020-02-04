@@ -120,7 +120,7 @@ for (i in 1:nrow(post)) {
   # за секоја видена вредност за висина
   # пресметај ја веројатноста на сите парови на параметри во решетката
   # врати веројатност на логаритамска скала
-  post$LL <- sum(dnorm(d2$height , mean = post$mu[i] , sd = post$sigma[i] , log = TRUE))
+  post$LL[i] <- sum(dnorm(d2$height , mean = post$mu[i] , sd = post$sigma[i] , log = TRUE))
 }
 
 # множиме веројатност со приор. за логаритми множење е собирање
@@ -141,5 +141,3 @@ image_xyz( post$mu , post$sigma , post$prob )
 
 ggplot(post, aes(x=mu, y=prob)) + geom_line()
 ```
-
-Нешто чудно? 
